@@ -16,18 +16,18 @@ mpl.rcParams['axes.grid'] = False
 
 
 # Import data
-df = pd.read_csv('climate.csv')
+df = pd.read_csv('btc1.csv')
 
 # slice [start:stop:step], starting from index 5 take every 6th record.
-df = df[5::6]
-date_time = pd.to_datetime(df.pop('Date Time'), format='%d.%m.%Y %H:%M:%S')
-
-#print(df)
+#df = df[5::6]
+date_time = df.pop('DATE')#, format='%d.%m.%Y %H:%M:%S')
+timestamp_s = date_time
+#print(timestamp_s)
 
 df.head()
 
 
-plot_cols = ['T (degC)', 'p (mbar)', 'rho (g/m**3)']
+plot_cols = ['BTC']
 plot_features = df[plot_cols]
 plot_features.index = date_time
 _ = plot_features.plot(subplots=True)
@@ -40,35 +40,6 @@ _ = plot_features.plot(subplots=True)
 
 df.describe().transpose()
 
-
-wv = df['wv (m/s)']
-bad_wv = wv == -9999.0
-wv[bad_wv] = 0.0
-
-max_wv = df['max. wv (m/s)']
-bad_max_wv = max_wv == -9999.0
-max_wv[bad_max_wv] = 0.0
-
-# The above inplace edits are reflected in the DataFrame
-df['wv (m/s)'].min()
-
-
-wv = df.pop('wv (m/s)')
-max_wv = df.pop('max. wv (m/s)')
-
-# Convert to radians.
-wd_rad = df.pop('wd (deg)')*np.pi / 180
-
-# Calculate the wind x and y components.
-df['Wx'] = wv*np.cos(wd_rad)
-df['Wy'] = wv*np.sin(wd_rad)
-
-# Calculate the max wind x and y components.
-df['max Wx'] = max_wv*np.cos(wd_rad)
-df['max Wy'] = max_wv*np.sin(wd_rad)
-
-
-timestamp_s = date_time.map(pd.Timestamp.timestamp)
 
 day = 24*60*60
 year = (365.2425)*day
@@ -159,11 +130,11 @@ WindowGenerator.split_window = split_window
 
 
 
-w1 = WindowGenerator(input_width=24, label_width=1, shift=24,
-                     label_columns=['T (degC)'])
+w1 = WindowGenerator(input_width=720, label_width=720, shift=24,
+                     label_columns=['BTC'])
 w1
 w2 = WindowGenerator(input_width=6, label_width=1, shift=1,
-                     label_columns=['T (degC)'])
+                     label_columns=['BTC'])
 w2
 
 
@@ -182,7 +153,7 @@ print(f'labels shape: {example_labels.shape}')
 
 w2.example = example_inputs, example_labels
 
-def plot(self, model=None, plot_col='T (degC)', max_subplots=3):
+def plot(self, model=None, plot_col='BTC', max_subplots=3):
   inputs, labels = self.example
   plt.figure(figsize=(12, 8))
   plot_col_index = self.column_indices[plot_col]
@@ -218,7 +189,7 @@ WindowGenerator.plot = plot
 
 
 w2.plot()
-w2.plot(plot_col='p (mbar)')
+w2.plot(plot_col='BTC')
 
 
 def make_dataset(self, data):
@@ -277,7 +248,7 @@ for example_inputs, example_labels in w2.train.take(1):
 
   single_step_window = WindowGenerator(
     input_width=1, label_width=1, shift=1,
-    label_columns=['T (degC)'])
+    label_columns=['BTC'])
 single_step_window
 
 
@@ -298,7 +269,7 @@ class Baseline(tf.keras.Model):
         result = inputs[:, :, self.label_index]
         return result[:, :, tf.newaxis]
 
-baseline = Baseline(label_index=column_indices['T (degC)'])
+baseline = Baseline(label_index=column_indices['BTC'])
 
 baseline.compile(loss=tf.losses.MeanSquaredError(),
                  metrics=[tf.metrics.MeanAbsoluteError()])
@@ -309,8 +280,8 @@ val_performance['Baseline'] = baseline.evaluate(single_step_window.val)
 performance['Baseline'] = baseline.evaluate(single_step_window.test, verbose=0)
 
 wide_window = WindowGenerator(
-    input_width=24, label_width=24, shift=1,
-    label_columns=['T (degC)'])
+    input_width=720, label_width=720, shift=24,
+    label_columns=['BTC'])
 
 wide_window
 print('Input shape:', wide_window.example[0].shape)
