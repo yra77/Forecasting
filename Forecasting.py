@@ -280,7 +280,7 @@ val_performance['Baseline'] = baseline.evaluate(single_step_window.val)
 performance['Baseline'] = baseline.evaluate(single_step_window.test, verbose=0)
 
 wide_window = WindowGenerator(
-    input_width=720, label_width=720, shift=24,
+    input_width=24, label_width=24, shift=1,
     label_columns=['BTC'])
 
 wide_window
