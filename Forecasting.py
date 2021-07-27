@@ -27,13 +27,15 @@ np.random.seed(RANDOM_SEED)
 
 
 df = pd.read_csv('BTC-USD.csv', parse_dates=['Date'])
+dtest = pd.read_csv('new.csv', parse_dates=['Date'])
 
+dtest.head()
 df.head()
 
-ax = df.plot(x='Date', y='Close');
-ax.set_xlabel("Date")
-ax.set_ylabel("Close Price (USD)")
-plt.show()
+#ax = df.plot(x='Date', y='Close');
+#ax.set_xlabel("Date")
+#ax.set_ylabel("Close Price (USD)")
+#plt.show()
 
 scaler = MinMaxScaler()
 close_price = df.Close.values.reshape(-1, 1)
@@ -49,8 +51,6 @@ scaled_close = scaled_close.reshape(-1, 1)
 
 np.isnan(scaled_close).any()
 
-
-
 SEQ_LEN = 100
 
 def to_sequences(data, seq_len):
@@ -64,7 +64,6 @@ def to_sequences(data, seq_len):
 def preprocess(data_raw, seq_len, train_split):
 
     data = to_sequences(data_raw, seq_len)
-
     num_train = int(train_split * data.shape[0])
 
     X_train = data[:num_train, :-1, :]
@@ -75,13 +74,24 @@ def preprocess(data_raw, seq_len, train_split):
 
     return X_train, y_train, X_test, y_test
 
+def pr(data_raw, seq_len=100):
+
+    data1 = to_sequences(data_raw, 1)
+  
+    num_train1 = int(1 * data1.shape[0])
+
+    X_date = data1[:num_train1]
+   
+    return X_date
+
 
 X_train, y_train, X_test, y_test = preprocess(scaled_close, SEQ_LEN, train_split = 0.95)
 
+X_date = pr(dtest, SEQ_LEN)
 
-print(X_train.shape)
+#print(X_train)
 
-print(X_test.shape)
+#print(X_date)
 
 
 DROPOUT = 0.2
@@ -89,8 +99,7 @@ WINDOW_SIZE = SEQ_LEN - 1
 
 model = keras.Sequential()
 
-model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=True),
-                        input_shape=(WINDOW_SIZE, X_train.shape[-1])))#,activation='tanh',recurrent_activation='sigmoid'
+model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=True), input_shape=(WINDOW_SIZE, X_train.shape[-1])))#,activation='tanh',recurrent_activation='sigmoid'
 model.add(Dropout(rate=DROPOUT))
 
 model.add(Bidirectional(LSTM((WINDOW_SIZE * 2), return_sequences=True)))
@@ -113,7 +122,7 @@ BATCH_SIZE = 64
 history = model.fit(
     X_train, 
     y_train, 
-    epochs=15, 
+    epochs=3, 
     batch_size=BATCH_SIZE, 
     shuffle=False,
     validation_split=0.1
@@ -129,10 +138,10 @@ model.evaluate(X_test, y_test)
 #plt.legend(['train', 'test'], loc='upper left')
 #plt.show()
 
-y_hat = model.predict(X_test)
+y_hat = model.predict(X_date)
 
-model.save('Model')
-model.save("Model/model_26_07.h5")
+#model.save('Model')
+#model.save("Model/model_26_07.h5")
 
 y_test_inverse = scaler.inverse_transform(y_test)
 y_hat_inverse = scaler.inverse_transform(y_hat)
