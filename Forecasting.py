@@ -1,160 +1,368 @@
 
-import os
-import IPython
-import IPython.display
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-import pandas as pd
-import seaborn as sns
-from pylab import rcParams
+from keras.layers import *
+from keras.models import *
+from keras.optimizers import *
+import math
 import matplotlib.pyplot as plt
-from matplotlib import rc
+
+import datetime
+
+import IPython
+import IPython.display
+import pandas as pd
+#import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.layers import Bidirectional, Dropout, Activation, Dense, LSTM
-from tensorflow.python.keras.layers import CuDNNLSTM
-from tensorflow.keras.models import Sequential
-
-#%matplotlib inline
-
-sns.set(style='whitegrid', palette='muted', font_scale=1.5)
-
-rcParams['figure.figsize'] = 14, 8
-
-RANDOM_SEED = 42
-
-np.random.seed(RANDOM_SEED)
 
 
-df = pd.read_csv('BTC-USD.csv', parse_dates=['Date'])
-dtest = pd.read_csv('new.csv', parse_dates=['Date'])
+df = pd.read_csv('btc1.csv')
 
-dtest.head()
-df.head()
 
-#ax = df.plot(x='Date', y='Close');
-#ax.set_xlabel("Date")
-#ax.set_ylabel("Close Price (USD)")
-#plt.show()
+shift = 7
+trainLength = 2419
+totalLength = len(df)
+
+# IT`s Mine
+
+## Drop date variable
+#data = data.drop(['DATE'], 1)
+
+
+## Make data a np.array
+#df = df.values
 
 scaler = MinMaxScaler()
-close_price = df.Close.values.reshape(-1, 1)
-scaled_close = scaler.fit_transform(close_price)
 
-scaled_close.shape
-
-np.isnan(scaled_close).any()
-
-scaled_close = scaled_close[~np.isnan(scaled_close)]
-
-scaled_close = scaled_close.reshape(-1, 1)
-
-np.isnan(scaled_close).any()
-
-SEQ_LEN = 100
-
-def to_sequences(data, seq_len):
-    d = []
-
-    for index in range(len(data) - seq_len):
-        d.append(data[index: index + seq_len])
-
-    return np.array(d)
-
-def preprocess(data_raw, seq_len, train_split):
-
-    data = to_sequences(data_raw, seq_len)
-    num_train = int(train_split * data.shape[0])
-
-    X_train = data[:num_train, :-1, :]
-    y_train = data[:num_train, -1, :]
-
-    X_test = data[num_train:, :-1, :]
-    y_test = data[num_train:, -1, :]
-
-    return X_train, y_train, X_test, y_test
-
-def pr(data_raw, seq_len=100):
-
-    data1 = to_sequences(data_raw, 1)
-  
-    num_train1 = int(1 * data1.shape[0])
-
-    X_date = data1[:num_train1]
-   
-    return X_date
+price = df.BTC.values.reshape(-1, 1)
 
 
-X_train, y_train, X_test, y_test = preprocess(scaled_close, SEQ_LEN, train_split = 0.95)
+scaled_price = scaler.fit_transform(price)
+scaled_price.shape
+np.isnan(scaled_price).any()
+scaled_price = scaled_price[~np.isnan(scaled_price)]
+scaled_price = scaled_price.reshape(-1, 1)
+np.isnan(scaled_price).any()
 
-X_date = pr(dtest, SEQ_LEN)
-
-#print(X_train)
-
-#print(X_date)
-
-
-DROPOUT = 0.2
-WINDOW_SIZE = SEQ_LEN - 1
-
-model = keras.Sequential()
-
-model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=True), input_shape=(WINDOW_SIZE, X_train.shape[-1])))#,activation='tanh',recurrent_activation='sigmoid'
-model.add(Dropout(rate=DROPOUT))
-
-model.add(Bidirectional(LSTM((WINDOW_SIZE * 2), return_sequences=True)))
-model.add(Dropout(rate=DROPOUT))
-
-model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=False)))
-
-model.add(Dense(units=1))
-
-model.add(Activation('linear'))
+date = df.DATE.values.reshape(-1, 1)
+scaled_date = scaler.fit_transform(date)
+scaled_date.shape
+np.isnan(scaled_date).any()
+scaled_date = scaled_date[~np.isnan(scaled_date)]
+scaled_date = scaled_date.reshape(-1, 1)
+np.isnan(scaled_date).any()
 
 
-model.compile(
-    loss='mean_squared_error', 
-    optimizer='adam'
-)
+data = np.empty((1,len(scaled_price),2))
 
-BATCH_SIZE = 64
+data[0,:,0] = scaled_date.flatten()
+data[0,:,1] = scaled_price.flatten()
 
-history = model.fit(
-    X_train, 
-    y_train, 
-    epochs=3, 
-    batch_size=BATCH_SIZE, 
-    shuffle=False,
-    validation_split=0.1
-)
+print(data)
+print(data.shape)
+print(data[0])
 
-model.evaluate(X_test, y_test)
 
-#plt.plot(history.history['loss'])
-#plt.plot(history.history['val_loss'])
-#plt.title('model loss')
-#plt.ylabel('loss')
-#plt.xlabel('epoch')
-#plt.legend(['train', 'test'], loc='upper left')
-#plt.show()
 
-y_hat = model.predict(X_date)
 
-#model.save('Model')
-#model.save("Model/model_26_07.h5")
 
-y_test_inverse = scaler.inverse_transform(y_test)
-y_hat_inverse = scaler.inverse_transform(y_hat)
+#data = np.empty((1,totalLength,2)) #0 to 1199
+
+##x for the first sinus
+#base1 = np.array(range(totalLength))*(30*math.pi/totalLength) #30*pi means 15 complete oscilations
+##the first sinus
+#data[0,:,0] = np.sin(base1)
+#print(base1)
+##x for the second sinus - this reflects in a sinus with a different frequency
+#base2 = 0.8*base1
+
+
+##the first * the second sinus 
+#data[0,:,1] = (np.sin(base1)+np.sin(base2))/2
+
+#print('data: ', data.shape)
+
+def takeSlice(arr, fr, to, name):
+    
+    result = arr[:,fr:to,:]
+    print(name + ": start at " + str(fr) + " - shape: " + str(result.shape))
+    return result
+
+
+
+#training data: y is one step ahead of x
+x = takeSlice(data,0,trainLength,'x') #de 0 a 799
+y = takeSlice(data,shift,shift+trainLength,'y') #de 7 a 806
+
+
+#true data for forecasting:
+xForecast = takeSlice(data,trainLength,-shift,'xForecast') #de 800 a 1192?
+trueForecast = takeSlice(data,shift+trainLength,None,'trueForecast') #de 807 a 1199
+
+
+#plotting
+
+fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,5))
+ax.plot(data[0,:,0],color='k',linewidth=3)
+ax.plot(data[0,:,1],color='b',linewidth=3)
+fig.suptitle('these are the two features of the complete data',fontsize=20)
+
+print('\n\n\n\n')
+
+#figure separating training and forecasting
+fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,5))
+ax.plot(range(trainLength),x[0,:,0],color='k',linewidth=4)
+ax.plot(range(trainLength),x[0,:,1],color='b',linewidth=1)
+ax.plot(range(trainLength,totalLength-shift),xForecast[0,:,0],color='y',linewidth=4)
+ax.plot(range(trainLength,totalLength-shift),xForecast[0,:,1],color='k',linewidth=1)
+fig.suptitle('Training and test data put together: ', fontsize=20)
+
+
+#creating the model 
+    
+model = Sequential()
+model.add(LSTM(100,return_sequences=True,input_shape=(None,2))) #input takes any steps, two features (var1 and var2)
+model.add(LSTM(70,return_sequences=True))
+model.add(LSTM(2,return_sequences=True)) #output keeps the steps and has two features
+model.add(Lambda(lambda x: x*1.3))
+
+
+#training the model
+
+#this callback interrupts training when loss stops decreasing after 10 consecutive epochs. 
+from keras.callbacks import EarlyStopping
+stop = EarlyStopping(monitor='loss',min_delta=0.000000000001,patience=30) #this big patience is important
+
+#different learning rates - train each indefinitely until the loss stops decreasing
+#fount that the best rate is between 0.0001 and 0.00001
+rates = [0.001,0.0001,0.00001]
+for rate in rates:
+    print('training with lr = ' + str(rate))
+    opt = tf.keras.optimizers.Adam(learning_rate=rate)
+    model.compile(opt, loss='mse')
+    model.fit(x,y,epochs=100,callbacks=[stop],verbose=2) #train indefinitely until loss stops decreasing
+    print('\n\n\n\n\n')
+
+
+#the model for predictions - copies the other model, but uses `return_sequences=False` and `stateful=True`
+#the change is just to allow predicting step by step and using the predictions as new steps. 
+newModel = Sequential()
+newModel.add(LSTM(100,return_sequences=True,stateful=True,batch_input_shape=(1,None,2)))
+newModel.add(LSTM(70,return_sequences=True,stateful=True))
+newModel.add(LSTM(2,return_sequences=False,stateful=True))
+newModel.add(Lambda(lambda x: x*1.3))
+
+newModel.set_weights(model.get_weights())
+
+
+#predicting from the predictions themselves (gets the training data as input to set states)
+newModel.reset_states()
+
+lastSteps = np.empty((1,totalLength-trainLength,2)) #includes a shift at the beginning to cover the gap 
+lastSteps[:,:shift] = x[:,-shift:] #the initial shift steps are filled with x training data 
+newModel.predict(x[:,:-shift,:]).reshape(1,1,2) #just to adjust states, predict with x without the last shift elements
+
+rangeLen = totalLength-trainLength-shift
+print('rangeLen: ', rangeLen)
+for i in range(rangeLen):
+    lastSteps[:,i+shift] = newModel.predict(lastSteps[:,i:i+1,:]).reshape(1,1,2)
+print(lastSteps.shape)
+forecastFromSelf = lastSteps[:,shift:,:]
+print(forecastFromSelf.shape)
+
+
+#predicting from test/future data:
+newModel.reset_states()
+
+newModel.predict(x) #just to set the states and get used to the sequence
+newSteps = []
+for i in range(xForecast.shape[1]):
+    newSteps.append(newModel.predict(xForecast[:,i:i+1,:]))
+forecastFromInput = np.asarray(newSteps).reshape(1,xForecast.shape[1],2)
+
+print('trueForecast: ', trueForecast.shape)
+print('forecastFromSelf: ', forecastFromSelf.shape)
+print('forecastFromInput: ', forecastFromInput.shape)
+print('\n\n\nblack line: true values')
+print('gold line: predicted values')
+
+
+#self forecast
+fig,ax = plt.subplots(1,1,figsize=(16,5))
+ax.plot(xForecast[0,:,0], linewidth=7,color='k') #this uses xForecast because it starts exactly where x ends
+ax.plot(forecastFromSelf[0,:,0],color='y')
+plt.suptitle("predicting feature 1 - self predictions")
+
+
+fig,ax = plt.subplots(1,1,figsize=(16,5))
+ax.plot(xForecast[0,:,1],linewidth=7,color='k') #this uses xForecast because it starts exactly where x ends
+ax.plot(forecastFromSelf[0,:,1],color='y')
+plt.suptitle("predicting feature 2 - self predictions")
+
+
+
+#forecast from test/future data:
+fig,ax = plt.subplots(1,1,figsize=(16,5))
+ax.plot(trueForecast[0,:,0], linewidth=7,color='k')
+ax.plot(forecastFromInput[0,:,0],color='y')
+plt.suptitle("predicting feature 1 - predictions from true data")
+
+
+fig,ax = plt.subplots(1,1,figsize=(16,5))
+ax.plot(trueForecast[0,:,1],linewidth=7,color='k')
+ax.plot(forecastFromInput[0,:,1],color='y')
+plt.suptitle("predicting feature 2 - predictions from true data")
+
+
+plt.show()
+
+
+
+
+
+
+
+
+#import os
+#import IPython
+#import IPython.display
+#import numpy as np
+#import tensorflow as tf
+#from tensorflow import keras
+#import pandas as pd
+#import seaborn as sns
+#from pylab import rcParams
+#import matplotlib.pyplot as plt
+#from matplotlib import rc
+#from sklearn.preprocessing import MinMaxScaler
+#from tensorflow.keras.layers import Bidirectional, Dropout, Activation, Dense, LSTM
+#from tensorflow.python.keras.layers import CuDNNLSTM
+#from tensorflow.keras.models import Sequential
+
+##%matplotlib inline
+
+#sns.set(style='whitegrid', palette='muted', font_scale=1.5)
+
+#rcParams['figure.figsize'] = 14, 8
+
+
+
+#df = pd.read_csv('BTC-USD.csv', parse_dates=['Date'])
+
+#df.head()
+
+##ax = df.plot(x='Date', y='Close');
+##ax.set_xlabel("Date")
+##ax.set_ylabel("Close Price (USD)")
+##plt.show()
+
+#scaler = MinMaxScaler()
+#close_price = df.Close.values.reshape(-1, 1)
+#scaled_close = scaler.fit_transform(close_price)
+
+#scaled_close.shape
+
+#np.isnan(scaled_close).any()
+
+#scaled_close = scaled_close[~np.isnan(scaled_close)]
+
+#scaled_close = scaled_close.reshape(-1, 1)
+
+#np.isnan(scaled_close).any()
+
+#SEQ_LEN = 100
+
+#def to_sequences(data, seq_len):
+#    d = []
+
+#    for index in range(len(data) - seq_len):
+#        d.append(data[index: index + seq_len])
+
+#    return np.array(d)
+
+#def preprocess(data_raw, seq_len, train_split):
+
+#    data = to_sequences(data_raw, seq_len)
+#    num_train = int(train_split * data.shape[0])
+
+#    X_train = data[:num_train, :-1, :]
+#    y_train = data[:num_train, -1, :]
+
+#    X_test = data[num_train:, :-1, :]
+#    y_test = data[num_train:, -1, :]
+
+#    return X_train, y_train, X_test, y_test
+
+
+#X_train, y_train, X_test, y_test = preprocess(scaled_close, SEQ_LEN, train_split = 0.95)
+
+
+##print(X_train)
+
+##print(X_date)
+
+
+#DROPOUT = 0.2
+#WINDOW_SIZE = SEQ_LEN - 1
+
+#model = keras.Sequential()
+
+#model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=True), input_shape=(WINDOW_SIZE, X_train.shape[-1])))#,activation='tanh',recurrent_activation='sigmoid'
+#model.add(Dropout(rate=DROPOUT))
+
+#model.add(Bidirectional(LSTM((WINDOW_SIZE * 2), return_sequences=True)))
+#model.add(Dropout(rate=DROPOUT))
+
+#model.add(Bidirectional(LSTM(WINDOW_SIZE, return_sequences=False)))
+
+#model.add(Dense(units=1))
+
+#model.add(Activation('linear'))
+
+
+#model.compile(
+#    loss='mean_squared_error', 
+#    optimizer='adam'
+#)
+
+#BATCH_SIZE = 64
+
+#history = model.fit(
+#    X_train, 
+#    y_train, 
+#    epochs=3, 
+#    batch_size=BATCH_SIZE, 
+#    shuffle=False,
+#    validation_split=0.1
+#)
+
+#model.evaluate(X_test, y_test)
+
+##plt.plot(history.history['loss'])
+##plt.plot(history.history['val_loss'])
+##plt.title('model loss')
+##plt.ylabel('loss')
+##plt.xlabel('epoch')
+##plt.legend(['train', 'test'], loc='upper left')
+##plt.show()
+
+#y_hat = model.predict(X_test)
+
+##model.save('Model')
+##model.save("Model/model_26_07.h5")
+
+#y_test_inverse = scaler.inverse_transform(y_test)
+#y_hat_inverse = scaler.inverse_transform(y_hat)
  
-plt.plot(y_test_inverse, label="Actual Price", color='green')
-plt.plot(y_hat_inverse, label="Predicted Price", color='red')
+#plt.plot(y_test_inverse, label="Actual Price", color='green')
+#plt.plot(y_hat_inverse, label="Predicted Price", color='red')
  
-plt.title('Bitcoin price prediction')
-plt.xlabel('Time [days]')
-plt.ylabel('Price')
-plt.legend(loc='best')
+#plt.title('Bitcoin price prediction')
+#plt.xlabel('Time [days]')
+#plt.ylabel('Price')
+#plt.legend(loc='best')
  
-plt.show();
+#plt.show();
 
 
 
@@ -452,6 +660,11 @@ plt.show();
 #plt.show()
 
 # END  Variant tensorflow
+
+
+
+
+
 
 
 # Variant №1 no working
