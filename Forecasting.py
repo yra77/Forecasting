@@ -16,11 +16,11 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 
-df = pd.read_csv('btc1.csv')
+df = pd.read_csv('C:/Users/User/source/repos/Forecasting/btc1.csv')
 
 
-shift = 7
-trainLength = 2419
+shift = 1
+trainLength = 2799
 totalLength = len(df)
 
 # IT`s Mine
@@ -140,7 +140,7 @@ for rate in rates:
     print('training with lr = ' + str(rate))
     opt = tf.keras.optimizers.Adam(learning_rate=rate)
     model.compile(opt, loss='mse')
-    model.fit(x,y,epochs=100,callbacks=[stop],verbose=2) #train indefinitely until loss stops decreasing
+    model.fit(x,y,epochs=10000,callbacks=[stop],verbose=2) #train indefinitely until loss stops decreasing
     print('\n\n\n\n\n')
 
 
@@ -154,9 +154,14 @@ newModel.add(Lambda(lambda x: x*1.3))
 
 newModel.set_weights(model.get_weights())
 
-
 #predicting from the predictions themselves (gets the training data as input to set states)
 newModel.reset_states()
+
+newModel.save('C:/Users/User/source/repos/Forecasting/Model/NewModel')
+newModel.save("C:/Users/User/source/repos/Forecasting/Model/NewModel/new_model_29_07.h5")
+#model.save('C:/Users/User/source/repos/Forecasting/Model')
+#model.save("C:/Users/User/source/repos/Forecasting/Model/model_29_07.h5")
+
 
 lastSteps = np.empty((1,totalLength-trainLength,2)) #includes a shift at the beginning to cover the gap 
 lastSteps[:,:shift] = x[:,-shift:] #the initial shift steps are filled with x training data 
